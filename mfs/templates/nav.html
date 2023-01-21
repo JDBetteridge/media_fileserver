@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Files{% endblock %}
+{% block heading %}Media files{% endblock %}
+{% block content %}
+<table class="w3-table w3-striped">
+  <tr>
+    <th>Date</th>
+    <th>Raw</th>
+  </tr>
+  {% for file in csvfiles %}
+  <tr>
+    <td><a href="list/{{ file.name }}">{{ file.name }}</a></td>
+    <td><a href="list/raw/{{ file.name }}">raw</a></td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}
