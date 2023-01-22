@@ -2,15 +2,31 @@
 {% block title %}Files{% endblock %}
 {% block heading %}Media files{% endblock %}
 {% block content %}
+<h6>{{ path.name }}</h6>
 <table class="w3-table w3-striped">
   <tr>
     <th>Date</th>
-    <th>Raw</th>
+    <th></th>
+    <th></th>
   </tr>
-  {% for file in csvfiles %}
+  {% if path.name != "" %}
   <tr>
-    <td><a href="list/{{ file.name }}">{{ file.name }}</a></td>
-    <td><a href="list/raw/{{ file.name }}">raw</a></td>
+    <td><a href="{{ parent.quote }}">..</a></td>
+    <td></td>
+    <td></td>
+  </tr>
+  {% endif %}
+  {% for file in filelist %}
+  <tr>
+    {% if file.path.is_dir() %}
+    <td><a href="{{ path.quote }}/{{ file.quote }}">{{ file.name }}</a></td>
+    {% else %}
+    <td>{{ file.name }}</td>
+    {% endif %}
+    <td><a href="download/{{ path.quote }}/{{ file.quote }}">download</a></td>
+    {% if file.path.is_file() %}
+    <td><a href="raw/{{ path.quote }}/{{ file.quote }}">view</a></td>
+    {% endif %}
   </tr>
   {% endfor %}
 </table>
