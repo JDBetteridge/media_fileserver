@@ -2,16 +2,18 @@
 {% block title %}Files{% endblock %}
 {% block heading %}Media files{% endblock %}
 {% block content %}
+{% if path is not none %}
 <h6>{{ path.name }}</h6>
+{% endif %}
 <table class="w3-table w3-striped">
   <tr>
-    <th>Date</th>
+    <th>Name</th>
     <th></th>
     <th></th>
   </tr>
-  {% if path.name != "" %}
+  {% if parent is not none %}
   <tr>
-    <td><a href="{{ parent.quote }}">..</a></td>
+    <td><a href="/{{ parent.quote }}">..</a></td>
     <td></td>
     <td></td>
   </tr>
@@ -19,13 +21,15 @@
   {% for file in filelist %}
   <tr>
     {% if file.path.is_dir() %}
-    <td><a href="{{ path.quote }}/{{ file.quote }}">{{ file.name }}</a></td>
+    <td><a href="/{{ file.quote }}">{{ file.name }}</a></td>
     {% else %}
     <td>{{ file.name }}</td>
     {% endif %}
-    <td><a href="download/{{ path.quote }}/{{ file.quote }}">download</a></td>
+    <td><a href="/download/{{ file.quote }}">download</a></td>
     {% if file.path.is_file() %}
-    <td><a href="raw/{{ path.quote }}/{{ file.quote }}">view</a></td>
+    <td><a href="/raw/{{ file.quote }}">view</a></td>
+    {% else %}
+    <td></td>
     {% endif %}
   </tr>
   {% endfor %}

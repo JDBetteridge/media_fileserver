@@ -15,33 +15,44 @@ directory = Path("/srv/torrents")
 
 
 class SafePathName:
-    def __init__(self, path):
+    def __init__(self, path, rel_to=directory):
         if isinstance(path, Path):
             self.path = path
         else:
             self.path = Path(path)
         self.name = self.path.name
-        self.html = str(escape(self.name))
-        self.quote = quote(self.name)
-        self.filename = secure_filename(self.name)
+        self.pathstr = str(self.path.absolute().relative_to(rel_to))
+        self.html = str(escape(self.pathstr))
+        self.quote = quote(self.pathstr)
+        self.filename = secure_filename(self.pathstr)
+
+    def __repr__(self):
+        rep = f"<SafePathName({self.path!r})>"
+        rep += f"\n\tHTML    : {self.html!r}"
+        rep += f"\n\tquote   : {self.quote!r}"
+        rep += f"\n\tsecurefn: {self.filename!r}"
+        return rep
 
 
 def get_files(path):
-    return [SafePathName(f) for f in sorted(path.glob("*"))]
+    directories = []
+    files = []
+    for f in sorted(path.glob("*")):
+        if f.is_dir():
+            directories.append(SafePathName(f))
+        else:
+            files.append(SafePathName(f))
+    return directories + files
 
-
-# ~ @mfs.route("/")
-# ~ def list():
-    # ~ filelist = get_files(directory)
-    # ~ return render_template("nav.html", filelist=filelist)
 
 @mfs.route("/")
 @mfs.route("/<path:path>")
 def list2(path="."):
-    print(path)
     filelist = get_files(directory/Path(path))
-    safepath = SafePathName(path)
-    parent = SafePathName(safepath.path.parent) if path != "." else None
+    safepath = SafePathName(directory/path)
+    parent = SafePathName(safepath.path.parent) if safepath.path != directory else None
+    if safepath.path == directory:
+        safepath = None
     return render_template("nav.html", path=safepath, parent=parent, filelist=filelist)
 
 
@@ -50,24 +61,18 @@ def download(path, name):
     return send_from_directory(directory/path, name, as_attachment=True)
 
 
-# ~ @mfs.route("/raw/<name>")
-# ~ def raw(name):
-    # ~ path = directory/name
-    # ~ print(path, flush=True)
-    # ~ with open(path) as fh:
-        # ~ contents = [line for line in fh.readlines()]
-    # ~ return render_template("raw.html", raw=contents)
 @mfs.route("/raw/<path:path>/<name>")
 def raw(path, name):
-    # ~ path = directory/name
-    # ~ with open(path) as fh:
-        # ~ contents = [line for line in fh.readlines()]
     ext = Path(name).suffix
     if ext:
         ext = ext[1:]
-    if ext in ["mp4"]:
+    if ext in ["mp4", "mkv"]:
         return send_from_directory(directory/path, name, as_attachment=False, mimetype="video/" + ext)
-    elif ext in ["txt", ""]:
+    elif ext in ["jpg", "jpeg", "png"]:
+        return send_from_directory(directory/path, name, as_attachment=False, mimetype="image/" + ext)
+    elif ext in ["pdf"]:
+        return send_from_directory(directory/path, name, as_attachment=False, mimetype="application/" + ext)
+    elif ext in ["txt", "srt", ""]:
         with open(directory/path/name) as fh:
             contents = [line for line in fh.readlines()]
         return render_template("raw.html", raw=contents)
