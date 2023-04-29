@@ -1,22 +1,23 @@
-import os
 import io
+import os
 import tarfile
 
-from flask import (Flask, render_template, send_from_directory,
+from argparse import ArgumentParser
+from flask import (Flask, Blueprint, render_template, send_from_directory,
                    send_file, escape)
 from functools import partial
 from pathlib import Path
 from urllib.parse import quote
 from werkzeug.utils import secure_filename
 
-host = "127.0.0.1"
-port = 8080
 mfs = Flask(__name__)
-directory = Path("/srv/torrents")
+browse = Blueprint('name', __name__)
 
 
 class SafePathName:
-    def __init__(self, path, rel_to=directory):
+    def __init__(self, path, rel_to=None):
+        if rel_to is None:
+            rel_to = mfs.config["directory"]
         if isinstance(path, Path):
             self.path = path
         else:
@@ -46,9 +47,10 @@ def get_files(path):
     return directories + files
 
 
-@mfs.route("/")
-@mfs.route("/<path:path>")
+@browse.route("/")
+@browse.route("/<path:path>")
 def list2(path="."):
+    directory = mfs.config["directory"]
     filelist = get_files(directory/Path(path))
     safepath = SafePathName(directory/path)
     if safepath.path != directory:
@@ -58,15 +60,20 @@ def list2(path="."):
     if safepath.path == directory:
         safepath = None
     return render_template(
-        "nav.html", path=safepath, parent=parent, filelist=filelist
+        "nav.html",
+        prefix=mfs.config["url_prefix"],
+        path=safepath,
+        parent=parent,
+        filelist=filelist
     )
 
 
-@mfs.route("/download/<path:path>")
-@mfs.route("/download/<path:path>/<name>")
-def download(path, name=None):
+@browse.route("/download/<name>")
+@browse.route("/download/<path:path>/<name>")
+def download(name, path="."):
     IN_MEMORY = False
-    if name is None or (directory/path/name).is_dir():
+    directory = mfs.config["directory"]
+    if (directory/path/name).is_dir():
         # Set filename and source
         if name:
             filename = secure_filename(name)
@@ -106,8 +113,10 @@ def download(path, name=None):
         return send_from_directory(directory/path, name, as_attachment=True)
 
 
-@mfs.route("/raw/<path:path>/<name>")
-def raw(path, name):
+@browse.route("/raw/<name>")
+@browse.route("/raw/<path:path>/<name>")
+def raw(name, path="."):
+    directory = mfs.config["directory"]
     ext = Path(name).suffix
     if ext:
         ext = ext[1:]
@@ -123,17 +132,54 @@ def raw(path, name):
     elif ext in ["txt", "srt", ""]:
         with open(directory/path/name) as fh:
             contents = [line for line in fh.readlines()]
-        return render_template("raw.html", raw=contents)
+        return render_template(
+            "raw.html",
+            prefix=mfs.config["url_prefix"],
+            raw=contents
+        )
 
 
-def main():
-    # This allows us to use a plain HTTP callback
-    # ~ os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = "1"
+def main(args):
+    # Register the blueprint at URL subdirectory args.prefix,
+    # but only if running directly with flask
+    browse.static_folder = "static"
+    mfs.register_blueprint(
+        browse,
+        url_prefix=args.prefix,
+    )
+    # Otherwise uWSGI app is added at URL subdirectory by lighttpd (see ***)
 
     # Runs web application
-    # add threaded=True
-    mfs.run(debug=True, host="0.0.0.0", port=port)  # ssl_context='adhoc'
+    mfs.run(debug=True, host="0.0.0.0", port=args.port)
 
+
+# Command line arguments
+parser = ArgumentParser()
+parser.add_argument(
+    "--prefix",
+    type=str,
+    help="web address prefix to prepend",
+    default=""
+)
+parser.add_argument(
+    "--serve",
+    type=str,
+    help="directory to serve",
+    default="."
+)
+parser.add_argument(
+    "--port",
+    type=int,
+    help="port to serve website on",
+    default=8080
+)
+args, _ = parser.parse_known_args()
+
+mfs.config["directory"] = Path(args.serve).absolute()
+mfs.config["url_prefix"] = args.prefix
 
 if __name__ == "__main__":
-    main()
+    main(args)
+else:
+    # (***)
+    mfs.register_blueprint(browse)

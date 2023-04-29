@@ -13,7 +13,7 @@
   </tr>
   {% if parent is not none %}
   <tr>
-    <td><a href="/{{ parent.quote }}">..</a></td>
+    <td><a href="{{ prefix }}/{{ parent.quote }}">..</a></td>
     <td></td>
     <td></td>
   </tr>
@@ -21,13 +21,13 @@
   {% for file in filelist %}
   <tr>
     {% if file.path.is_dir() %}
-    <td><a href="/{{ file.quote }}">{{ file.name }}</a></td>
+    <td><a href="{{ prefix }}/{{ file.quote }}">{{ file.name }}</a></td>
     {% else %}
     <td>{{ file.name }}</td>
     {% endif %}
-    <td><a href="/download/{{ file.quote }}">download</a></td>
+    <td><a href="{{ prefix }}/download/{{ file.quote }}">download</a></td>
     {% if file.path.is_file() %}
-    <td><a href="/raw/{{ file.quote }}">view</a></td>
+    <td><a href="{{ prefix }}/raw/{{ file.quote }}">view</a></td>
     {% else %}
     <td></td>
     {% endif %}
